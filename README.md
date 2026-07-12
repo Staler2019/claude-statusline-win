@@ -9,7 +9,7 @@ Configure your Claude Code statusline to show limits, directory and git info
 Run the command below to set it up
 
 ```bash
-npx @kamranahmedse/claude-statusline
+npx @staler2019/claude-statusline-win
 ```
 
 It backups your old status line if any, copies the right status line script for your platform (`~/.claude/statusline.sh` on macOS/Linux, `~/.claude/statusline.ps1` on Windows), and configures your Claude Code settings. Git Bash/WSL is **not** required on Windows — native PowerShell 5.1 (already installed on Windows 10/11) is used.
@@ -37,10 +37,14 @@ That's it — the Windows status line script (`statusline.ps1`) uses PowerShell'
 ## Uninstall
 
 ```bash
-npx @kamranahmedse/claude-statusline --uninstall
+npx @staler2019/claude-statusline-win --uninstall
 ```
 
 If you had a previous statusline, it restores it from the backup. Otherwise it removes the script and cleans up your settings.
+
+## Special Thanks
+
+This project is a fork of [claude-statusline](https://github.com/kamranahmedse/claude-statusline) by [Kamran Ahmed](https://github.com/kamranahmedse), adding native Windows support and other improvements. Many thanks to him for the original work this builds on.
 
 ## License
 
