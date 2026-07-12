@@ -25,10 +25,10 @@ sep=" ${dim}│${reset} "
 # ── Helpers ─────────────────────────────────────────────
 color_for_pct() {
     local pct=$1
-    if [ "$pct" -ge 90 ]; then printf "$red"
-    elif [ "$pct" -ge 70 ]; then printf "$yellow"
-    elif [ "$pct" -ge 50 ]; then printf "$orange"
-    else printf "$green"
+    if [ "$pct" -ge 90 ]; then printf '%s' "$red"
+    elif [ "$pct" -ge 70 ]; then printf '%s' "$yellow"
+    elif [ "$pct" -ge 50 ]; then printf '%s' "$orange"
+    else printf '%s' "$green"
     fi
 }
 
@@ -47,7 +47,7 @@ build_bar() {
     for ((i=0; i<filled; i++)); do filled_str+="●"; done
     for ((i=0; i<empty; i++)); do empty_str+="○"; done
 
-    printf "${bar_color}${filled_str}${dim}${empty_str}${reset}"
+    printf '%s' "${bar_color}${filled_str}${dim}${empty_str}${reset}"
 }
 
 format_epoch_time() {

@@ -12,9 +12,11 @@ Run the command below to set it up
 npx @kamranahmedse/claude-statusline
 ```
 
-It backups your old status line if any and copies the status line script to `~/.claude/statusline.sh` and configures your Claude Code settings.
+It backups your old status line if any, copies the right status line script for your platform (`~/.claude/statusline.sh` on macOS/Linux, `~/.claude/statusline.ps1` on Windows), and configures your Claude Code settings. Git Bash/WSL is **not** required on Windows — native PowerShell 5.1 (already installed on Windows 10/11) is used.
 
 ## Requirements
+
+**macOS / Linux:**
 
 - [jq](https://jqlang.github.io/jq/) — for parsing JSON
 - curl — for fetching rate limit data
@@ -25,6 +27,12 @@ On macOS:
 ```bash
 brew install jq
 ```
+
+**Windows:**
+
+- git — for branch info
+
+That's it — the Windows status line script (`statusline.ps1`) uses PowerShell's built-in JSON parsing and `Invoke-RestMethod` instead of `jq`/`curl`.
 
 ## Uninstall
 
