@@ -1,6 +1,6 @@
 {
-  "name": "@kamranahmedse/claude-statusline",
-  "version": "1.0.6",
+  "name": "@staler2019/claude-statusline-win",
+  "version": "1.1.0",
   "description": "A status line for Claude Code CLI showing model, context usage, rate limits, and more",
   "bin": {
     "claude-statusline": "./bin/install.js"
@@ -12,5 +12,5 @@
     "cli"
   ],
   "license": "MIT",
-  "author": "Kamran Ahmed"
+  "author": "Staler2019"
 }
