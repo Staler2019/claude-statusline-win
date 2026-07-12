@@ -4,10 +4,13 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 
+const isWindows = process.platform === "win32";
+
 const CLAUDE_DIR = path.join(os.homedir(), ".claude");
 const SETTINGS_FILE = path.join(CLAUDE_DIR, "settings.json");
-const STATUSLINE_DEST = path.join(CLAUDE_DIR, "statusline.sh");
-const STATUSLINE_SRC = path.resolve(__dirname, "statusline.sh");
+const STATUSLINE_DEST = path.join(CLAUDE_DIR, isWindows ? "statusline.ps1" : "statusline.sh");
+const STATUSLINE_SRC = path.resolve(__dirname, isWindows ? "statusline.ps1" : "statusline.sh");
+const STATUSLINE_NAME = path.basename(STATUSLINE_DEST);
 
 const blue = "\x1b[38;2;0;153;255m";
 const green = "\x1b[38;2;0;175;80m";
@@ -32,29 +35,20 @@ function fail(msg) {
   console.error(`  ${red}✗${reset} ${msg}`);
 }
 
-function checkDeps() {
+const REQUIRED_DEPS = isWindows ? ["git"] : ["jq", "curl", "git"];
+
+function commandExists(cmd) {
   const { execSync } = require("child_process");
-  const missing = [];
-
   try {
-    execSync("which jq", { stdio: "ignore" });
+    execSync(`${isWindows ? "where" : "which"} ${cmd}`, { stdio: "ignore" });
+    return true;
   } catch {
-    missing.push("jq");
+    return false;
   }
+}
 
-  try {
-    execSync("which curl", { stdio: "ignore" });
-  } catch {
-    missing.push("curl");
-  }
-
-  try {
-    execSync("which git", { stdio: "ignore" });
-  } catch {
-    missing.push("git");
-  }
-
-  return missing;
+function checkDeps() {
+  return REQUIRED_DEPS.filter((cmd) => !commandExists(cmd));
 }
 
 function uninstall() {
@@ -68,10 +62,10 @@ function uninstall() {
   if (fs.existsSync(backup)) {
     fs.copyFileSync(backup, STATUSLINE_DEST);
     fs.unlinkSync(backup);
-    success(`Restored previous statusline from ${dim}statusline.sh.bak${reset}`);
+    success(`Restored previous statusline from ${dim}${STATUSLINE_NAME}.bak${reset}`);
   } else if (fs.existsSync(STATUSLINE_DEST)) {
     fs.unlinkSync(STATUSLINE_DEST);
-    success(`Removed ${dim}statusline.sh${reset}`);
+    success(`Removed ${dim}${STATUSLINE_NAME}${reset}`);
   } else {
     warn("No statusline found — nothing to remove");
   }
@@ -117,7 +111,7 @@ function run() {
     }
     process.exit(1);
   }
-  success("Dependencies found (jq, curl, git)");
+  success(`Dependencies found (${REQUIRED_DEPS.join(", ")})`);
 
   if (!fs.existsSync(CLAUDE_DIR)) {
     fs.mkdirSync(CLAUDE_DIR, { recursive: true });
@@ -127,11 +121,13 @@ function run() {
   const backup = STATUSLINE_DEST + ".bak";
   if (fs.existsSync(STATUSLINE_DEST)) {
     fs.copyFileSync(STATUSLINE_DEST, backup);
-    warn(`Backed up existing statusline to ${dim}statusline.sh.bak${reset}`);
+    warn(`Backed up existing statusline to ${dim}${STATUSLINE_NAME}.bak${reset}`);
   }
 
   fs.copyFileSync(STATUSLINE_SRC, STATUSLINE_DEST);
-  fs.chmodSync(STATUSLINE_DEST, 0o755);
+  if (!isWindows) {
+    fs.chmodSync(STATUSLINE_DEST, 0o755);
+  }
   success(`Installed statusline to ${dim}${STATUSLINE_DEST}${reset}`);
 
   let settings = {};
@@ -146,7 +142,9 @@ function run() {
 
   const statusLineConfig = {
     type: "command",
-    command: 'bash "$HOME/.claude/statusline.sh"',
+    command: isWindows
+      ? `powershell -NoProfile -File ${STATUSLINE_DEST.replace(/\\/g, "/")}`
+      : 'bash "$HOME/.claude/statusline.sh"',
   };
 
   if (

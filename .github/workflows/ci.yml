@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint-node:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: node --check bin/install.js
+      - run: node -e "JSON.parse(require('fs').readFileSync('package.json', 'utf8'))"
+
+  lint-shell:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: shellcheck bin/statusline.sh
+
+  lint-powershell:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - shell: pwsh
+        run: |
+          $results = Invoke-ScriptAnalyzer -Path bin/statusline.ps1 -Severity Warning,Error
+          $results | Format-Table -AutoSize
+          if ($results | Where-Object { $_.Severity -eq 'Error' }) {
+            throw "PSScriptAnalyzer found error-level issues"
+          }
+
+  smoke-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Set sandbox home (non-Windows)
+        if: runner.os != 'Windows'
+        run: echo "HOME=${{ runner.temp }}/fakehome" >> "$GITHUB_ENV"
+
+      - name: Set sandbox home (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $fakeHome = Join-Path $env:RUNNER_TEMP "fakehome"
+          New-Item -ItemType Directory -Force -Path $fakeHome | Out-Null
+          "USERPROFILE=$fakeHome" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "HOME=$fakeHome" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Run installer
+        run: node bin/install.js
+
+      - name: Assert install artifacts (non-Windows)
+        if: runner.os != 'Windows'
+        run: |
+          test -f "$HOME/.claude/statusline.sh"
+          grep -q '"type": "command"' "$HOME/.claude/settings.json"
+          grep -q 'statusline.sh' "$HOME/.claude/settings.json"
+
+      - name: Assert install artifacts (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "$env:HOME/.claude/statusline.ps1")) { throw "statusline.ps1 not installed" }
+          $settings = Get-Content "$env:HOME/.claude/settings.json" -Raw | ConvertFrom-Json
+          if ($settings.statusLine.command -notlike "*statusline.ps1*") { throw "settings.json not configured for ps1" }
+
+      - name: Run uninstaller
+        run: node bin/install.js --uninstall
+
+      - name: Assert cleanup (non-Windows)
+        if: runner.os != 'Windows'
+        run: |
+          test ! -f "$HOME/.claude/statusline.sh"
+          ! grep -q statusLine "$HOME/.claude/settings.json"
+
+      - name: Assert cleanup (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if (Test-Path "$env:HOME/.claude/statusline.ps1") { throw "statusline.ps1 not removed" }
+          $settings = Get-Content "$env:HOME/.claude/settings.json" -Raw | ConvertFrom-Json
+          if ($settings.PSObject.Properties.Name -contains 'statusLine') { throw "statusLine not removed from settings.json" }
