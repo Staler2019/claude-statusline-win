@@ -1,7 +1,18 @@
 #requires -Version 5.1
 # Windows PowerShell port of statusline.sh — see that file for the reference behavior.
 
-[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+# Claude Code invokes this script with stdout piped (not a real console), so the
+# encoding that matters is $OutputEncoding, not [Console]::OutputEncoding — Windows
+# PowerShell 5.1 defaults $OutputEncoding to the legacy OEM/ASCII codepage, which
+# silently mangles the Unicode glyphs below (│ ✍️ ◑ ● ○ ⟳ ⏱ ⚡) into "?" once piped.
+$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+$OutputEncoding = $utf8NoBom
+try { [Console]::OutputEncoding = $utf8NoBom } catch { }
+try {
+    $stdout = New-Object System.IO.StreamWriter([Console]::OpenStandardOutput(), $utf8NoBom)
+    $stdout.AutoFlush = $true
+    [Console]::SetOut($stdout)
+} catch { }
 
 $rawInput = [Console]::In.ReadToEnd()
 if ([string]::IsNullOrWhiteSpace($rawInput)) {
@@ -313,8 +324,8 @@ if ($extraEnabled -and $usageData) {
 }
 
 # ── Output ──────────────────────────────────────────────
-Write-Host $line1
+Write-Output $line1
 if ($rateLines) {
-    Write-Host ""
-    Write-Host $rateLines
+    Write-Output ""
+    Write-Output $rateLines
 }
