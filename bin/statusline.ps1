@@ -1,29 +1,31 @@
-#requires -Version 5.1
+﻿#requires -Version 5.1
 # Windows PowerShell port of statusline.sh — see that file for the reference behavior.
 
-# Claude Code invokes this script with stdout piped (not a real console), so the
-# encoding that matters is $OutputEncoding, not [Console]::OutputEncoding — Windows
-# PowerShell 5.1 defaults $OutputEncoding to the legacy OEM/ASCII codepage, which
-# silently mangles the Unicode glyphs below (│ ✍️ ◑ ● ○ ⟳ ⏱ ⚡) into "?" once piped.
+# Claude Code invokes this script with stdout piped (not a real console). In that
+# mode, PowerShell's own pipeline output (Write-Output/Write-Host, and therefore
+# $OutputEncoding / [Console]::OutputEncoding) is unreliable: Windows PowerShell 5.1
+# routes redirected output through its own internal writer rather than honoring
+# [Console]::SetOut, so re-pointing Console.Out has no effect, and $OutputEncoding
+# still ends up mangling the Unicode glyphs below (│ ✍️ ◑ ● ○ ⟳ ⏱ ⚡) into "?" or
+# dropping raw ANSI escape bytes once piped. To sidestep all of that, the final
+# output below bypasses the PowerShell pipeline entirely and writes UTF-8 bytes
+# straight to the raw stdout handle.
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-$OutputEncoding = $utf8NoBom
-try { [Console]::OutputEncoding = $utf8NoBom } catch { }
-try {
-    $stdout = New-Object System.IO.StreamWriter([Console]::OpenStandardOutput(), $utf8NoBom)
-    $stdout.AutoFlush = $true
-    [Console]::SetOut($stdout)
-} catch { }
+$stdout = New-Object System.IO.StreamWriter([Console]::OpenStandardOutput(), $utf8NoBom)
+$stdout.AutoFlush = $true
 
 $rawInput = [Console]::In.ReadToEnd()
 if ([string]::IsNullOrWhiteSpace($rawInput)) {
-    Write-Output "Claude"
+    $stdout.Write("Claude")
+    $stdout.Flush()
     exit 0
 }
 
 try {
     $data = $rawInput | ConvertFrom-Json
 } catch {
-    Write-Output "Claude"
+    $stdout.Write("Claude")
+    $stdout.Flush()
     exit 0
 }
 
@@ -324,8 +326,9 @@ if ($extraEnabled -and $usageData) {
 }
 
 # ── Output ──────────────────────────────────────────────
-Write-Output $line1
+$output = $line1
 if ($rateLines) {
-    Write-Output ""
-    Write-Output $rateLines
+    $output += "`n`n$rateLines"
 }
+$stdout.Write($output)
+$stdout.Flush()
